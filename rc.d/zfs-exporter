@@ -1,0 +1,61 @@
+#!/bin/sh
+
+# PROVIDE: zfs_exporter
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# Add the following lines to /etc/rc.conf.local or /etc/rc.conf
+# to enable this service:
+#
+# zfs_exporter_enable (bool):          Set to NO by default.
+#               Set it to YES to enable zfs_exporter.
+# zfs_exporter_user (string):          Set user that zfs_exporter will run under
+#               Default is "nobody".
+# zfs_exporter_group (string):         Set group that zfs_exporter will run under
+#               Default is "nobody".
+# zfs_exporter_args (string):          Set extra arguments to pass to zfs_exporter
+#               Default is "".
+# zfs_exporter_listen_address (string):Set ip:port that zfs_exporter will listen on
+#               Default is "0.0.0.0:9145".
+
+. /etc/rc.subr
+
+name=zfs_exporter
+rcvar=zfs_exporter_enable
+
+load_rc_config $name
+
+: ${zfs_exporter_enable:="NO"}
+: ${zfs_exporter_user:="nobody"}
+: ${zfs_exporter_group:="nobody"}
+: ${zfs_exporter_args:=""}
+: ${zfs_exporter_listen_address:="0.0.0.0:9145"}
+: ${zfs_exporter_textfile_dir:="/var/tmp/zfs_exporter"}
+
+
+pidfile=/var/run/zfs_exporter.pid
+command="/usr/sbin/daemon"
+procname="/usr/local/bin/zfs-exporter"
+address=$(echo $zfs_exporter_listen_address | cut -d: -f1)
+port=$(echo $zfs_exporter_listen_address | cut -d: -f2)
+command_args="-f -p ${pidfile} -T ${name} \
+    /usr/bin/env ROCKET_address=${address} ROCKET_port=${port} \
+    ${procname} \
+    --listen-address=${zfs_exporter_listen_address} \
+    --exporter.textfile.directory=${zfs_exporter_textfile_dir} \
+    ${zfs_exporter_args}"
+
+start_precmd=zfs_exporter_startprecmd
+
+zfs_exporter_startprecmd()
+{
+    if [ ! -e ${pidfile} ]; then
+        install \
+            -o ${zfs_exporter_user} \
+            -g ${zfs_exporter_group} \
+            /dev/null ${pidfile};
+    fi
+}
+
+load_rc_config $name
+run_rc_command "$1"
